@@ -1,0 +1,27 @@
+language: python
+matrix:
+  include:
+  - os: linux
+    dist: xenial
+    sudo: required
+    group: edge
+    python: 2.7
+  - os: linux
+    dist: xenial
+    sudo: required
+    group: edge
+    python: 3.5
+  - os: osx
+    osx_image: xcode8.3
+    language: generic
+    env: PYTHONPATH=/Library/Python/2.7/site-packages/
+before_install:
+  - if test ${TRAVIS_OS_NAME} = "linux"; then sudo apt-get update -q && sudo apt-get install -y autopoint; fi
+  - if test ${TRAVIS_OS_NAME} = "osx"; then brew update && brew install gettext && brew link --force gettext; fi
+script:
+  - python setup.py update
+  - python setup.py build
+  - PYTHONPATH=`ls -1d build/lib.*` python run_tests.py
+  - python setup.py sdist
+  - python setup.py bdist
+  - if test ${TRAVIS_OS_NAME} = "linux"; then mkdir -p ${PWD}/tmp/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/ && PYTHONPATH=${PWD}/tmp/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/ python setup.py install --prefix=${PWD}/tmp/; fi
