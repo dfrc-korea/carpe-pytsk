@@ -16,10 +16,57 @@
  */
 #include "tsk3.h"
 
+#include "tsk/fs/tsk_ffs.h"
+#include "tsk/fs/tsk_ext2fs.h"
+#include "tsk/fs/tsk_fatfs.h"
+
+
 #if defined( TSK_MULTITHREAD_LIB )
 extern void tsk_init_lock(tsk_lock_t * lock);
 extern void tsk_deinit_lock(tsk_lock_t * lock);
 #endif
+
+
+static bool BLK_ALLOC_FLAG = false;
+static bool BLK_META_FLAG = false;
+
+
+//return block status
+static int BLK_STATUS(){    
+    return BLK_ALLOC_FLAG ? 1 : 0;    
+}
+
+
+// Callback function for block stat
+static TSK_WALK_RET_ENUM
+blkstat_act(const TSK_FS_BLOCK * fs_block, void *ptr)
+{
+    BLK_ALLOC_FLAG = (fs_block->flags & TSK_FS_BLOCK_FLAG_ALLOC) ? true : false;
+    BLK_META_FLAG = (fs_block->flags & TSK_FS_BLOCK_FLAG_META) ? true : false;
+    /* 20190502 
+    *  need to insert data to db ?
+    *  just alloc status?
+    *
+    if (TSK_FS_TYPE_ISFFS(fs_block->fs_info->ftype)) {
+        FFS_INFO *ffs = (FFS_INFO *) fs_block->fs_info;
+        //tsk_printf("Group: %" PRI_FFSGRP "\n", ffs->grp_num);
+    }
+    else if (TSK_FS_TYPE_ISEXT(fs_block->fs_info->ftype)) {
+        EXT2FS_INFO *ext2fs = (EXT2FS_INFO *) fs_block->fs_info;
+        if (fs_block->addr >= ext2fs->first_data_block)
+            //tsk_printf("Group: %" PRI_EXT2GRP "\n", ext2fs->grp_num);
+    }
+    else if (TSK_FS_TYPE_ISFAT(fs_block->fs_info->ftype)) {
+        FATFS_INFO *fatfs = (FATFS_INFO *) fs_block->fs_info;
+        if (fs_block->addr >= fatfs->firstclustsect) {
+            tsk_printf("Cluster: %" PRIuDADDR "\n",
+                (2 + (fs_block->addr -
+                        fatfs->firstclustsect) / fatfs->csize));            
+        }
+    */
+    return TSK_WALK_STOP;
+}
+
 
 /* Prototypes for IMG_INFO hooks
  * Note that IMG_INFO_read is called by the SleuthKit the Img_Info_read
@@ -203,8 +250,8 @@ static FS_Info FS_Info_Con(FS_Info self, Img_Info img, TSK_OFF_T offset,
     self->info = tsk_fs_open_img((TSK_IMG_INFO *) self->extended_img_info, offset, type);
 
     if(!self->info) {
-        RaiseError(EIOError, "Unable to open the image as a filesystem at offset: 0x%08" PRIxOFF " with error: %s",
-                   offset, tsk_error_get());
+        RaiseError(EIOError, "Unable to open the image as a filesystem: %s",
+                   tsk_error_get());
         tsk_error_reset();
         return NULL;
     }
@@ -313,7 +360,20 @@ on_error:
         tsk_fs_file_close(info);
     }
     return NULL;
-}
+};
+
+uint8_t FS_Info_blockstat(FS_Info self, TSK_DADDR_T addr) {
+    int flags =
+        (TSK_FS_BLOCK_WALK_FLAG_UNALLOC | TSK_FS_BLOCK_WALK_FLAG_ALLOC |
+        TSK_FS_BLOCK_WALK_FLAG_META | TSK_FS_BLOCK_WALK_FLAG_CONT |
+        TSK_FS_BLOCK_WALK_FLAG_AONLY);
+        tsk_fs_block_walk(self->info, addr, addr, flags, blkstat_act, NULL);
+    if(BLK_ALLOC_FLAG){
+        return 1;
+    } 
+    return 0;  
+} 
+
 
 static void FS_Info_exit(FS_Info self PYTSK3_ATTRIBUTE_UNUSED) {
   PYTSK3_UNREFERENCED_PARAMETER(self)
@@ -325,6 +385,7 @@ VIRTUAL(FS_Info, Object) {
   VMETHOD(open_dir) = FS_Info_open_dir;
   VMETHOD(open) = FS_Info_open;
   VMETHOD(open_meta) = FS_Info_open_meta;
+  VMETHOD(blockstat) = FS_Info_blockstat;
   VMETHOD(exit) = FS_Info_exit;
 } END_VIRTUAL
 

@@ -36,6 +36,7 @@ typedef struct {
 BIND_STRUCT(Extended_TSK_IMG_INFO);
 
 /** Bind the following structs */
+
 BIND_STRUCT(TSK_FS_INFO);
 BIND_STRUCT(TSK_FS_NAME);
 BIND_STRUCT(TSK_FS_META);
@@ -46,6 +47,7 @@ BIND_STRUCT(TSK_FS_ATTR);
 BIND_STRUCT(TSK_FS_ATTR_RUN);
 BIND_STRUCT(TSK_VS_PART_INFO);
 BIND_STRUCT(TSK_VS_INFO);
+
 
 /** This is a normal IMG_INFO which takes a filename and passes it
     to TSK. It just uses the standard TSK image handling code to
@@ -240,9 +242,31 @@ CLASS(FS_Info, Object)
      // Open a file by inode number
      File METHOD(FS_Info, open_meta, TSK_INUM_T inode);
 
+     /**
+      * Walk a range of file system blocks and call the callback function
+      * with the contents and allocation status of each.
+      * See tsk_fs_block_walk() for details.
+      * @param a_start_blk Block address to start walking from
+      * @param a_end_blk Block address to walk to
+      * @param a_flags Flags used during walk to determine which blocks to call callback with
+      * @param a_action Callback function
+      * @param a_ptr Pointer that will be passed to callback
+      * @returns 1 on error and 0 on success 
+     */
+     uint8_t METHOD(FS_Info, blockstat, TSK_DADDR_T blk_addr);
+
      void METHOD(FS_Info, exit);
 
 END_CLASS
+
+// To Do : BLOCK INFO CLASS
+/**
+CLASS(BLCOK_INFO, Object)
+      
+END_CLASS      
+*/
+
+
 
      int *tsk_get_current_error(char **buff);
 
