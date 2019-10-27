@@ -277,6 +277,7 @@ class UpdateCommand(Command):
   This is normally only run by packagers to make a new release.
   """
   _SLEUTHKIT_GIT_TAG = "4.6.6"
+  _CARPE_SLEUTHKIT_GIT_TAG = "xfs_merged"
 
   version = time.strftime("%Y%m%d")
 
@@ -295,7 +296,7 @@ class UpdateCommand(Command):
 
   user_options = [("use-head", None, (
       "Use the latest version of Sleuthkit checked into git (HEAD) instead of "
-      "tag: {0:s}".format(_SLEUTHKIT_GIT_TAG)))]
+      "tag: {0:s}".format(_CARPE_SLEUTHKIT_GIT_TAG)))]
 
   def initialize_options(self):
     self.use_head = False
@@ -366,7 +367,7 @@ class UpdateCommand(Command):
     else:
       print("Pulling from tag: {0:s}".format(self._SLEUTHKIT_GIT_TAG))
       subprocess.check_call(["git", "fetch", "--tags"], cwd="sleuthkit")
-      git_tag_path = "tags/sleuthkit-{0:s}".format(self._SLEUTHKIT_GIT_TAG)
+      git_tag_path = "tags/{0:s}".format(self._CARPE_SLEUTHKIT_GIT_TAG)
       subprocess.check_call(["git", "checkout", git_tag_path], cwd="sleuthkit")
 
       self.patch_sleuthkit()
